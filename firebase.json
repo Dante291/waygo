@@ -1,0 +1,1 @@
+{"flutter":{"platforms":{"android":{"default":{"projectId":"waygoapp","appId":"1:1010090203428:android:93f40fc5542540eb8e3bb1","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"waygoapp","configurations":{"android":"1:1010090203428:android:93f40fc5542540eb8e3bb1","ios":"1:1010090203428:ios:84d5a69f22e727b78e3bb1"}}}}}}
