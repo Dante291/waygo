@@ -2,7 +2,7 @@ import 'package:waygo/models/user.dart';
 import 'package:waygo/view_models/authentication/registration_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:waygo/views/after_auth/home_screen.dart';
+import 'package:waygo/views/after_auth/home.dart';
 
 class EmergencyContactScreen extends StatefulWidget {
   final CustomUser user;
@@ -160,7 +160,7 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => HomeScreen(
+                              builder: (context) => Home(
                                 user: widget.user,
                               ),
                             ),

@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:waygo/models/user.dart';
-import 'package:waygo/views/after_auth/home_screen.dart';
+import 'package:waygo/views/after_auth/home.dart';
 import 'package:waygo/views/authentication/phone_sign_up.dart';
 import 'package:waygo/views/introduction/intro_pages.dart';
 
@@ -36,7 +36,7 @@ class _SplashScreenState extends State<SplashScreen> {
       } else {
         CustomUser customUser = await _getCustomUserData(user.uid);
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => HomeScreen(user: customUser)),
+          MaterialPageRoute(builder: (context) => Home(user: customUser)),
         );
       }
     } else {

@@ -47,7 +47,10 @@ class RideListItem extends StatelessWidget {
                 ),
                 Text(
                   date,
-                  style: const TextStyle(color: Colors.black, fontSize: 12),
+                  style: const TextStyle(
+                      color: Color.fromARGB(255, 0, 0, 0),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500),
                 ),
                 Container(
                   padding:
