@@ -1,4 +1,3 @@
-import 'package:waygo/views/after_auth/home_view_screen.dart';
 import 'package:waygo/widgets/splas_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
@@ -16,9 +15,10 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Carpool App',
       theme: ThemeData(
+        fontFamily: "Montserrat",
         primarySwatch: Colors.blue,
       ),
-      home: homeScreen(),
+      home: SplashScreen(),
     );
   }
 }
