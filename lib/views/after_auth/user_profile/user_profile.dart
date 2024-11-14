@@ -1,5 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:waygo/models/user.dart';
+import 'package:waygo/views/after_auth/user_profile/user_details_screen.dart';
+import 'package:waygo/views/authentication/phone_sign_up.dart';
 
 class UserProfile extends StatelessWidget {
   final CustomUser user;
@@ -21,7 +24,7 @@ class UserProfile extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            SizedBox(height: MediaQuery.of(context).size.height * 0.03),
+            SizedBox(height: MediaQuery.of(context).size.height * 0.02),
             _buildAppBar(),
             SizedBox(height: MediaQuery.of(context).size.height * 0.02),
             const Center(
@@ -161,29 +164,124 @@ class UserProfile extends StatelessWidget {
   }
 
   Widget _buildMenuItems() {
-    final menuItems = [
-      {'icon': Icons.list, 'title': 'All rides detail'},
-      {'icon': Icons.settings, 'title': 'Settings'},
-      {'icon': Icons.help, 'title': 'Help'},
-      {'icon': Icons.description, 'title': 'Legal'},
-      {'icon': Icons.person, 'title': 'Account Settings'},
-      {'icon': Icons.card_giftcard, 'title': 'Refer & Earn'},
-      {'icon': Icons.exit_to_app, 'title': 'Log Out'},
+    final List<MenuItem> menuItems = [
+      MenuItem(
+        icon: Icons.list,
+        title: 'All rides detail',
+        onTap: (context) => _handleMenuItemTap(context, 'All rides detail'),
+      ),
+      MenuItem(
+        icon: Icons.settings,
+        title: 'Settings',
+        onTap: (context) => _handleMenuItemTap(context, 'Settings'),
+      ),
+      MenuItem(
+        icon: Icons.help,
+        title: 'Help',
+        onTap: (context) => _handleMenuItemTap(context, 'Help'),
+      ),
+      MenuItem(
+        icon: Icons.description,
+        title: 'Legal',
+        onTap: (context) => _handleMenuItemTap(context, 'Legal'),
+      ),
+      MenuItem(
+        icon: Icons.person,
+        title: 'Account Settings',
+        onTap: (context) => _handleMenuItemTap(context, 'Account Settings'),
+      ),
+      MenuItem(
+        icon: Icons.card_giftcard,
+        title: 'Refer & Earn',
+        onTap: (context) => _handleMenuItemTap(context, 'Refer & Earn'),
+      ),
+      MenuItem(
+        icon: Icons.exit_to_app,
+        title: 'Log Out',
+        onTap: (context) => _showLogoutDialog(context),
+      ),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    return Expanded(
       child: ListView.builder(
         itemCount: menuItems.length,
         itemBuilder: (context, index) {
           final item = menuItems[index];
           return ListTile(
-            leading: Icon(item['icon'] as IconData),
-            title: Text(item['title'] as String),
-            onTap: () {},
+            leading: Icon(item.icon),
+            title: Text(
+              item.title,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            onTap: () => item.onTap(context),
           );
         },
       ),
     );
   }
+
+  void _handleMenuItemTap(BuildContext context, String itemTitle) {
+    // Handle navigation or action for each menu item
+    switch (itemTitle) {
+      case 'All rides detail':
+        // Navigate to All rides detail screen
+        break;
+      case 'Settings':
+        // Navigate to Settings screen
+        break;
+      case 'Help':
+        // Navigate to Help screen
+        break;
+      case 'Legal':
+        // Navigate to Legal screen
+        break;
+      case 'Account Settings':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+              builder: (context) => UserProfileScreen(
+                    user: user,
+                  )),
+        );
+        break;
+      case 'Refer & Earn':
+        // Navigate to Refer & Earn screen
+        break;
+      // No need for 'Log Out' case as it's handled separately
+    }
+  }
+
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Log Out"),
+          content: const Text("Are you sure you want to log out?"),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () async {
+                await FirebaseAuth.instance.signOut();
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (context) => SignUpScreen()),
+                );
+              },
+              child: const Text("Log Out"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class MenuItem {
+  final IconData icon;
+  final String title;
+  final Function(BuildContext) onTap;
+
+  MenuItem({required this.icon, required this.title, required this.onTap});
 }

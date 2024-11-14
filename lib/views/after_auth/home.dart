@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:waygo/models/user.dart';
 import 'package:waygo/views/after_auth/home_screen_view.dart';
+import 'package:waygo/views/after_auth/offer_ride_section/offer_ride_section.dart';
 import 'package:waygo/views/after_auth/user_profile/user_profile.dart';
 
 class Home extends StatefulWidget {
@@ -21,7 +22,7 @@ class _HomeState extends State<Home> {
       // Home screen content
       HomeScreen(user: widget.user),
       // Offer Ride screen content
-      const Center(child: Text("Offer Ride Screen Content")),
+      CurrentLocationMap(),
       // Find Ride screen content
       const Center(child: Text("Find Ride Screen Content")),
       // Account screen content
@@ -31,6 +32,7 @@ class _HomeState extends State<Home> {
     ];
     return SafeArea(
         child: Scaffold(
+            resizeToAvoidBottomInset: false,
             backgroundColor: const Color.fromARGB(243, 255, 255, 255),
             body: _pages[_selectedIndex],
             bottomNavigationBar: BottomNavigationBar(
