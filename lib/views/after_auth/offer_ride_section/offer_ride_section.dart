@@ -18,6 +18,8 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
   LatLng? _destinationLocation;
   LatLng? _origin;
   int selectedSeats = 3;
+  double totalDistance = 0.0;
+  String totalDuration = '';
 
   List<LatLng> _polylinePoints = [];
 
@@ -35,17 +37,31 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        // Handle permission denied
+        // Set a default location if permission is denied
+        setState(() {
+          _currentLocation =
+              const LatLng(28.6139, 77.2090); // New Delhi coordinates
+          _currentAddress = 'New Delhi, India';
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _mapController.move(_adjustMapCenter(_currentLocation!), 10);
+        });
         return;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      // Handle permission denied forever
+      setState(() {
+        _currentLocation = _currentLocation = const LatLng(28.6139, 77.2090);
+        _currentAddress = 'New Delhi, India';
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _mapController.move(_adjustMapCenter(_currentLocation!), 10);
+      });
       return;
     }
 
-    // Get current position
+    // Get current position if permissions are granted
     Position position = await Geolocator.getCurrentPosition(
       locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
     );
@@ -122,16 +138,51 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
       String destination =
           '${_destinationLocation!.latitude},${_destinationLocation!.longitude}';
       var directions = await getDirections(origin, destination);
-
+      print(directions['routes']);
       if (directions['routes'] != null && directions['routes'].isNotEmpty) {
         String polyline = directions['routes'][0]['overview_polyline'];
         List<LatLng> decodedPoints = decodePolyline(polyline);
+        List<dynamic> steps = directions['routes'][0]['legs'][0]['steps'];
+
         setState(() {
           _polylinePoints = decodedPoints;
+          totalDistance = calculateTotalDistance(steps);
+          totalDuration = calculateTotalDuration(steps);
         });
         _fitMapToPolyline();
       }
     }
+  }
+
+  String calculateTotalDuration(List<dynamic> steps) {
+    int totalSeconds = 0;
+
+    // Accumulate the duration for each step in seconds
+    for (var step in steps) {
+      totalSeconds += step['duration'] as int; // duration is in seconds
+    }
+
+    // Convert total seconds to hours and minutes
+    int hours = totalSeconds ~/ 3600;
+    int minutes = (totalSeconds % 3600) ~/ 60;
+
+    // Format output based on whether hours are greater than 0 or not
+    if (hours > 0) {
+      return '$hours hr ${minutes}m';
+    } else {
+      return '$minutes mins';
+    }
+  }
+
+  double calculateTotalDistance(List<dynamic> steps) {
+    double totalDistance = 0.0;
+
+    for (var step in steps) {
+      // Accumulate the distance for each step in meters
+      totalDistance += step['distance'];
+    }
+
+    return totalDistance / 1000; // Convert meters to kilometers
   }
 
   void _fitMapToPolyline() {
@@ -271,15 +322,14 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
                               ),
                             ),
                             const SizedBox(height: 20),
-                            const Padding(
-                              padding: EdgeInsets.only(left: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.add_location_alt_outlined,
-                                    color: Color.fromRGBO(215, 223, 127, 1),
+                                  Image.asset(
+                                    'assets/images/pin-location.png',
                                   ),
-                                  Text(
+                                  const Text(
                                     'Start from',
                                     style: TextStyle(
                                       color: Color.fromRGBO(215, 223, 127, 1),
@@ -294,15 +344,14 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
                               onDestinationSelected: (LatLng destination) {},
                             ),
                             const SizedBox(height: 10),
-                            const Padding(
-                              padding: EdgeInsets.only(left: 8),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 8),
                               child: Row(
                                 children: [
-                                  Icon(
-                                    Icons.add_location_alt_outlined,
-                                    color: Color.fromRGBO(215, 223, 127, 1),
+                                  Image.asset(
+                                    'assets/images/origin-icon.png',
                                   ),
-                                  Text(
+                                  const Text(
                                     'Destination',
                                     style: TextStyle(
                                       color: Color.fromRGBO(215, 223, 127, 1),
@@ -318,19 +367,19 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
                               },
                             ),
                             const SizedBox(height: 10),
-                            const Row(
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Distance:',
-                                  style: TextStyle(
+                                  'Distance: ${totalDistance.toStringAsFixed(1)}km',
+                                  style: const TextStyle(
                                       color: Color.fromRGBO(215, 223, 127, 1),
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600),
                                 ),
                                 Text(
-                                  'Time Estimated:',
-                                  style: TextStyle(
+                                  'Time Estimated: $totalDuration',
+                                  style: const TextStyle(
                                       color: Color.fromRGBO(215, 223, 127, 1),
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600),

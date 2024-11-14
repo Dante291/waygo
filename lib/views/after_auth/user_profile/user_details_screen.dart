@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:waygo/models/user.dart';
@@ -120,7 +122,7 @@ class UserProfileScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 50,
                 backgroundImage: user.userProfilePhoto.isNotEmpty
-                    ? NetworkImage(user.userProfilePhoto)
+                    ? MemoryImage(base64Decode(user.userProfilePhoto))
                     : null,
                 child: user.userProfilePhoto.isEmpty
                     ? Text(

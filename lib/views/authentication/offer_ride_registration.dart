@@ -66,19 +66,41 @@ class _VehicleTypeScreenState extends State<VehicleTypeScreen> {
                   ],
                 ),
                 SizedBox(height: MediaQuery.of(context).size.height * 0.09),
-                _buildTextField(_vehicleBrandController, 'Vehicle Brand'),
+                _buildTextField(_vehicleBrandController, 'Vehicle Brand',
+                    (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a vehicle brand';
+                  }
+                  return null;
+                }),
                 SizedBox(height: MediaQuery.of(context).size.height * 0.02),
-                _buildTextField(_vehicleModelController, 'Vehicle Model'),
+                _buildTextField(_vehicleModelController, 'Vehicle Model',
+                    (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a vehicle model';
+                  }
+                  return null;
+                }),
                 SizedBox(height: MediaQuery.of(context).size.height * 0.1),
                 ElevatedButton(
                   onPressed: () {
-                    if (_formKey.currentState!.validate()) {
+                    // Validate all fields
+                    if (_formKey.currentState!.validate() &&
+                        _selectedVehicleType != null) {
                       widget.user.vehicleType = _selectedVehicleType!;
                       widget.user.vehicleBrand = _vehicleBrandController.text;
                       widget.user.vehicleModel = _vehicleModelController.text;
                       Navigator.of(context).push(MaterialPageRoute(
                           builder: (context) =>
                               VehicleDetailsScreen(user: widget.user)));
+                    } else if (_selectedVehicleType == null) {
+                      // Show an alert if no vehicle type is selected
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please select a vehicle type'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -138,7 +160,7 @@ class _VehicleTypeScreenState extends State<VehicleTypeScreen> {
   }
 
   Widget _buildTextField(TextEditingController controller, String hintText,
-      {String? Function(String?)? validator}) {
+      String? Function(String?)? validator) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(

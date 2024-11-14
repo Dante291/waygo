@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:waygo/models/user.dart';
@@ -81,7 +83,7 @@ class UserProfile extends StatelessWidget {
           CircleAvatar(
             radius: 35,
             backgroundImage: user.userProfilePhoto.isNotEmpty
-                ? NetworkImage(user.userProfilePhoto)
+                ? MemoryImage(base64Decode(user.userProfilePhoto))
                 : null,
             backgroundColor: Colors.blueGrey,
             child: user.userProfilePhoto.isEmpty

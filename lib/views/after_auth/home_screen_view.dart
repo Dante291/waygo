@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:waygo/models/user.dart';
 import 'package:waygo/widgets/ride_list_item.dart';
@@ -54,7 +56,7 @@ class _HomeScreenState extends State<HomeScreen> {
               CircleAvatar(
                 radius: 35,
                 backgroundImage: widget.user.userProfilePhoto.isNotEmpty
-                    ? NetworkImage(widget.user.userProfilePhoto)
+                    ? MemoryImage(base64Decode(widget.user.userProfilePhoto))
                     : null,
                 backgroundColor: Colors.blueGrey,
                 child: widget.user.userProfilePhoto.isEmpty

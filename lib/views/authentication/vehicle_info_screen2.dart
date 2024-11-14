@@ -5,6 +5,7 @@ import 'package:waygo/view_models/authentication/registration_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:waygo/views/after_auth/home.dart';
 
 class VehicleDetailsScreen extends StatefulWidget {
   final CustomUser user;
@@ -23,6 +24,10 @@ class VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
   File? _vehiclePhoto;
   File? _driverLicence;
   File? _userPhoto;
+
+  String? _vehiclePhotoName;
+  String? _driverLicenceName;
+  String? _userPhotoName;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -49,12 +54,15 @@ class VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
         switch (type) {
           case 'vehicle':
             _vehiclePhoto = File(pickedFile.path);
+            _vehiclePhotoName = pickedFile.name;
             break;
           case 'licence':
             _driverLicence = File(pickedFile.path);
+            _driverLicenceName = pickedFile.name;
             break;
           case 'user':
             _userPhoto = File(pickedFile.path);
+            _userPhotoName = pickedFile.name;
             break;
         }
       });
@@ -116,7 +124,9 @@ class VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
                     await saveUserData(widget.user, 'Offer Ride', context);
                     if (context.mounted) {
                       Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => const NextScreen(),
+                        builder: (context) => Home(
+                          user: widget.user,
+                        ),
                       ));
                     }
                   },
@@ -172,32 +182,78 @@ class VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
   }
 
   Widget _buildUploadField(String labelText, String type) {
+    String? fileName; // Local variable for file name
+
+    switch (type) {
+      case 'vehicle':
+        fileName = _vehiclePhotoName;
+        break;
+      case 'licence':
+        fileName = _driverLicenceName;
+        break;
+      case 'user':
+        fileName = _userPhotoName;
+        break;
+    }
+
     return Row(
       children: [
         Expanded(
-          child: Text(
-            labelText,
-            style: const TextStyle(
-              fontFamily: "Montserrat",
-              fontSize: 17,
-              color: Color(0xFFD7DF7F),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                labelText,
+                style: const TextStyle(
+                  fontFamily: "Montserrat",
+                  fontSize: 17,
+                  color: Color(0xFFD7DF7F),
+                ),
+              ),
+              if (fileName != null)
+                Row(
+                  children: [
+                    Text(
+                      fileName,
+                      style: const TextStyle(
+                        fontFamily: "Montserrat",
+                        fontSize: 14,
+                        color: Colors.white,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.red),
+                      onPressed: () {
+                        setState(() {
+                          // Clear the image and file name based on type
+                          switch (type) {
+                            case 'vehicle':
+                              _vehiclePhoto = null;
+                              _vehiclePhotoName = null;
+                              break;
+                            case 'licence':
+                              _driverLicence = null;
+                              _driverLicenceName = null;
+                              break;
+                            case 'user':
+                              _userPhoto = null;
+                              _userPhotoName = null;
+                              break;
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ),
+            ],
           ),
         ),
         IconButton(
-          icon: const Icon(Icons.upload_file, color: Colors.yellow),
-          onPressed: () => _pickImage(type),
+          icon: Icon(Icons.upload_file,
+              color: (fileName == null) ? Colors.yellow : Colors.grey),
+          onPressed: (fileName == null) ? () => _pickImage(type) : null,
         ),
       ],
     );
-  }
-}
-
-class NextScreen extends StatelessWidget {
-  const NextScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold();
   }
 }
