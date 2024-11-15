@@ -1,4 +1,5 @@
-import 'package:waygo/widgets/splas_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:waygo/splas_screen.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 
@@ -11,14 +12,16 @@ void main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Carpool App',
-      theme: ThemeData(
-        fontFamily: "Montserrat",
-        primarySwatch: Colors.blue,
+    return ProviderScope(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Carpool App',
+        theme: ThemeData(
+          fontFamily: "Montserrat",
+          primarySwatch: Colors.blue,
+        ),
+        home: const SplashScreen(),
       ),
-      home: SplashScreen(),
     );
   }
 }

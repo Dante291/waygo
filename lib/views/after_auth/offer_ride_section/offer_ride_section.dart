@@ -19,7 +19,7 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
   LatLng? _origin;
   int selectedSeats = 3;
   double totalDistance = 0.0;
-  String totalDuration = '';
+  String totalDuration = '0 mins.';
 
   List<LatLng> _polylinePoints = [];
 

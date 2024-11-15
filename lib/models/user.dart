@@ -61,4 +61,26 @@ class CustomUser {
       'vehicleAge': vehicleAge,
     };
   }
+
+  factory CustomUser.fromMap(Map<String, dynamic> map) {
+    return CustomUser(
+      name: map['name'] ?? '',
+      phoneNumber: map['phoneNumber'] ?? '',
+      email: map['email'] ?? '',
+      dateOfBirth: map['dateOfBirth'] ?? '',
+      gender: map['gender'] ?? '',
+      emergencyContactName: map['emergencyContactName'] ?? '',
+      emergencyContactPhone: map['emergencyContactPhone'] ?? '',
+      otpOnEmail: map['otpOnEmail'] ?? false,
+      isDriver: map['isDriver'] ?? false,
+      vehicleType: map['vehicleType'] ?? '',
+      vehicleBrand: map['vehicleBrand'] ?? '',
+      vehicleModel: map['vehicleModel'] ?? '',
+      vehicleNumber: map['vehicleNumber'] ?? '',
+      vehiclePhoto: map['vehiclePhoto'] ?? '',
+      driversLicensePhoto: map['driversLicensePhoto'] ?? '',
+      userProfilePhoto: map['userProfilePhoto'] ?? '',
+      vehicleAge: map['vehicleAge'] ?? 0,
+    );
+  }
 }

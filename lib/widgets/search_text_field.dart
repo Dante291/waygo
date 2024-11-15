@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:latlong2/latlong.dart';
 
 class AutocompleteSearchField extends StatefulWidget {
-  bool showIconButton;
+  final bool showIconButton;
   final void Function(LatLng destination) onDestinationSelected;
 
   AutocompleteSearchField({
