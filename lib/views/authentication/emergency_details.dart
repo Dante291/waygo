@@ -1,10 +1,11 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:waygo/models/user.dart';
 import 'package:waygo/view_models/authentication/registration_viewmodel.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:waygo/views/after_auth/home.dart';
 
-class EmergencyContactScreen extends StatefulWidget {
+class EmergencyContactScreen extends ConsumerStatefulWidget {
   final CustomUser user;
 
   const EmergencyContactScreen({super.key, required this.user});
@@ -13,7 +14,8 @@ class EmergencyContactScreen extends StatefulWidget {
   _EmergencyContactScreenState createState() => _EmergencyContactScreenState();
 }
 
-class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
+class _EmergencyContactScreenState
+    extends ConsumerState<EmergencyContactScreen> {
   final TextEditingController _contactNameController = TextEditingController();
   final TextEditingController _contactPhoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -156,7 +158,12 @@ class _EmergencyContactScreenState extends State<EmergencyContactScreen> {
                             _contactPhoneController.text;
 
                         if (widget.user.isDriver == false) {
-                          saveUserData(widget.user, 'Find Ride', context);
+                          saveUserData(
+                            widget.user,
+                            'Find Ride',
+                            ref,
+                            context,
+                          );
                           Navigator.push(
                             context,
                             MaterialPageRoute(

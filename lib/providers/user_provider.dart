@@ -22,6 +22,10 @@ class UserNotifier extends StateNotifier<CustomUser?> {
     }
   }
 
+  void updateUser(CustomUser user) {
+    state = user;
+  }
+
   // Clear user data (e.g., during logout)
   void clearUser() {
     state = null;

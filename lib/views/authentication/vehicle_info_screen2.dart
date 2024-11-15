@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:waygo/models/user.dart';
 import 'package:waygo/view_models/authentication/registration_viewmodel.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:waygo/views/after_auth/home.dart';
 
-class VehicleDetailsScreen extends StatefulWidget {
+class VehicleDetailsScreen extends ConsumerStatefulWidget {
   final CustomUser user;
 
   const VehicleDetailsScreen({super.key, required this.user});
@@ -16,7 +17,7 @@ class VehicleDetailsScreen extends StatefulWidget {
   VehicleDetailsScreenState createState() => VehicleDetailsScreenState();
 }
 
-class VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
+class VehicleDetailsScreenState extends ConsumerState<VehicleDetailsScreen> {
   final TextEditingController _vehicleNumberController =
       TextEditingController();
   final TextEditingController _vehicleAgeController = TextEditingController();
@@ -121,7 +122,7 @@ class VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
                     widget.user.driversLicensePhoto =
                         _imageToBase64(_driverLicence);
                     widget.user.userProfilePhoto = _imageToBase64(_userPhoto);
-                    await saveUserData(widget.user, 'Offer Ride', context);
+                    await saveUserData(widget.user, 'Offer Ride', ref, context);
                     if (context.mounted) {
                       Navigator.of(context).push(MaterialPageRoute(
                         builder: (context) => Home(

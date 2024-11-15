@@ -1,10 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:waygo/models/user.dart'; // Import your CustomUser model
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:waygo/models/user.dart';
+import 'package:waygo/providers/user_provider.dart'; // Import your CustomUser model
 
-Future<void> saveUserData(
-    CustomUser customUser, String userType, BuildContext context) async {
+Future<void> saveUserData(CustomUser customUser, String userType, WidgetRef ref,
+    BuildContext context) async {
   try {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) {
@@ -18,6 +20,7 @@ Future<void> saveUserData(
 
     // Save the CustomUser data in a single document
     await userRef.set(customUser.toMap(), SetOptions(merge: true));
+    ref.read(userProvider.notifier).updateUser(customUser);
   } catch (e) {
     if (context.mounted) {
       showDialog(

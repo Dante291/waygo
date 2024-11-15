@@ -138,7 +138,6 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
       String destination =
           '${_destinationLocation!.latitude},${_destinationLocation!.longitude}';
       var directions = await getDirections(origin, destination);
-      print(directions['routes']);
       if (directions['routes'] != null && directions['routes'].isNotEmpty) {
         String polyline = directions['routes'][0]['overview_polyline'];
         List<LatLng> decodedPoints = decodePolyline(polyline);
