@@ -12,13 +12,15 @@ class UserNotifier extends StateNotifier<CustomUser?> {
       final doc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (doc.exists) {
-        state = CustomUser.fromMap(doc.data()!); // Update user state
+        final userData = doc.data()!;
+        userData['id'] = doc.id;
+        state = CustomUser.fromMap(userData);
       } else {
-        state = null; // No user data
+        state = null;
       }
     } catch (e) {
       print("Error fetching user data: $e");
-      state = null; // Handle error
+      state = null;
     }
   }
 

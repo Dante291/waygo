@@ -17,6 +17,7 @@ Future<void> saveUserData(CustomUser customUser, String userType, WidgetRef ref,
 
     // Update the isDriver field based on userType
     customUser.isDriver = userType == 'Offer Ride';
+    customUser.id = userId;
 
     // Save the CustomUser data in a single document
     await userRef.set(customUser.toMap(), SetOptions(merge: true));

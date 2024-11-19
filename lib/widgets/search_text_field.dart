@@ -40,12 +40,12 @@ class _AutocompleteSearchFieldState
         // Validate "Start From" before letting the user type
         if (!(widget.validateStart!())) {
           setState(() {
-            _showError = true; // Show the error
+            _showError = true;
           });
-          _focusNode.unfocus(); // Remove focus
+          _focusNode.unfocus();
         } else {
           setState(() {
-            _showError = false; // Clear the error
+            _showError = false;
           });
         }
       }

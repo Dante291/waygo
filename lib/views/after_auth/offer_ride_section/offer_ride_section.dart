@@ -8,6 +8,8 @@ import 'package:waygo/view_models/offer_ride_view_models/offer_ride_view_model.d
 import 'package:waygo/widgets/search_text_field.dart';
 
 class CurrentLocationMap extends ConsumerStatefulWidget {
+  const CurrentLocationMap({super.key});
+
   @override
   _CurrentLocationMapState createState() => _CurrentLocationMapState();
 }
@@ -16,9 +18,6 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
   final MapController _mapController = MapController();
   bool _mounted = true;
 
-  bool _showInfoCard = false;
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
   OverlayEntry? _overlayEntry;
 
   final GlobalKey _infoCardKey = GlobalKey();
@@ -69,8 +68,8 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
               color: const Color.fromRGBO(10, 34, 41, 1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color:
-                    Color.fromRGBO(215, 223, 127, 1), // Dark gray border color
+                color: const Color.fromRGBO(
+                    215, 223, 127, 1), // Dark gray border color
                 width: 3,
               ),
             ),
@@ -95,57 +94,6 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
   void _removeOverlay() {
     _overlayEntry?.remove();
     _overlayEntry = null;
-  }
-
-  Future<void> _selectDateTime(BuildContext context) async {
-    final DateTime? date = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Color.fromRGBO(215, 223, 127, 1),
-              surface: Color.fromRGBO(13, 47, 58, 1),
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (date != null) {
-      final TimeOfDay? time = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.now(),
-        builder: (context, child) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.dark(
-                primary: Color.fromRGBO(215, 223, 127, 1),
-                surface: Color.fromRGBO(13, 47, 58, 1),
-              ),
-            ),
-            child: child!,
-          );
-        },
-      );
-
-      if (time != null) {
-        setState(() {
-          _selectedDate = DateTime(
-            date.year,
-            date.month,
-            date.day,
-            time.hour,
-            time.minute,
-          );
-          _selectedTime = time;
-        });
-      }
-    }
   }
 
   void _fitMapToPolyline(List<LatLng> polylinePoints) {
@@ -598,7 +546,9 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                   ),
-                                  onPressed: () {},
+                                  onPressed: () {
+                                    viewModel.createAndSaveRide(ref);
+                                  },
                                   child: const Row(
                                     children: [
                                       Icon(Icons.emoji_transportation,

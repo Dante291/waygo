@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Ride {
-  String id;
+  String? id;
   String driverId;
   List<String> passengerIds;
   GeoPoint startLocation;
@@ -16,7 +16,7 @@ class Ride {
   List<String> stops;
 
   Ride({
-    required this.id,
+    this.id,
     required this.driverId,
     required this.passengerIds,
     required this.startLocation,
@@ -33,7 +33,6 @@ class Ride {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'driverId': driverId,
       'passengerIds': passengerIds,
       'startLocation': startLocation,

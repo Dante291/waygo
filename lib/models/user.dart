@@ -1,4 +1,5 @@
 class CustomUser {
+  String id;
   String name;
   String phoneNumber;
   String email;
@@ -20,6 +21,7 @@ class CustomUser {
   int vehicleAge;
 
   CustomUser({
+    this.id = '',
     this.name = '',
     this.phoneNumber = '',
     this.email = '',
@@ -42,6 +44,7 @@ class CustomUser {
   // Convert to Map for Firestore
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'name': name,
       'phoneNumber': phoneNumber,
       'email': email,

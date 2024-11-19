@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:latlong2/latlong.dart';
+import 'package:waygo/models/rides.dart';
+import 'package:waygo/providers/user_provider.dart';
 
 class OfferRideViewModel extends ChangeNotifier {
   LatLng? _currentLocation = const LatLng(28.6139, 77.2090);
@@ -212,6 +216,93 @@ class OfferRideViewModel extends ChangeNotifier {
   void setSelectedSeats(int seats) {
     selectedSeats = seats;
     notifyListeners();
+  }
+
+  Future<void> createAndSaveRide(WidgetRef ref) async {
+    // Ensure both origin and destination are not null
+    if (_origin == null || _destinationLocation == null) {
+      throw Exception('Origin or destination is missing');
+    }
+
+    final customUser = ref.read(userProvider); // Get current user from provider
+    if (customUser == null) {
+      throw Exception('User information is missing');
+    }
+
+    // Validate vehicle type and seats
+    if (vehicleType.isEmpty) {
+      throw Exception('Vehicle type is required');
+    }
+
+    if (selectedSeats < 1 || selectedSeats > maxSeats) {
+      throw Exception('Invalid number of seats selected');
+    }
+
+    // Create the ride object
+    final ride = Ride(
+      id: '',
+      driverId: FirebaseAuth.instance.currentUser!.uid,
+      passengerIds: [],
+      startLocation: GeoPoint(_origin!.latitude, _origin!.longitude),
+      endLocation: GeoPoint(
+          _destinationLocation!.latitude, _destinationLocation!.longitude),
+      startAddress: await _getAddressForLocation(_origin!),
+      endAddress: await _getAddressForLocation(_destinationLocation!),
+      departureTime:
+          DateTime.now(), // Current time, can be modified for scheduled rides
+      availableSeats: selectedSeats,
+      price: fare,
+      status: 'scheduled',
+      vehicleType: vehicleType,
+      stops: [],
+    );
+
+    // Save the ride to Firestore
+    await saveRideToFirestore(ride);
+  }
+
+  Future<void> saveRideToFirestore(Ride ride) async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      final ridesCollection = FirebaseFirestore.instance.collection('rides');
+
+      // Add the ride to Firestore; Firestore generates the ID
+      final docRef = await ridesCollection.add(ride.toMap());
+
+      // Update the ride object with the generated ID
+      ride.id = docRef.id;
+
+      // Optionally, update user's rides reference
+      final userRef =
+          FirebaseFirestore.instance.collection('users').doc(userId);
+      await userRef.update({
+        'activeRides': FieldValue.arrayUnion([ride.id])
+      });
+    } catch (e) {
+      // Handle any errors during save process
+      print('Error saving ride: $e');
+      rethrow;
+    }
+  }
+
+  Future<String> _getAddressForLocation(LatLng location) async {
+    final latlng = '${location.latitude},${location.longitude}';
+    final url = Uri.parse('https://api.olamaps.io/places/v1/reverse-geocode')
+        .replace(queryParameters: {
+      'latlng': latlng,
+      'api_key': 'W4ZIxk4chk1Y0C7tcHLcrzORBRrGS0WR6izkx25d',
+    });
+
+    final response = await http.get(url);
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return (data['results'] as List<dynamic>).first['name'];
+    }
+    return 'Unknown Address';
   }
 }
 
