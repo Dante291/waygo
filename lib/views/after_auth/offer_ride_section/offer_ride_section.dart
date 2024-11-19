@@ -1,199 +1,164 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:waygo/providers/user_provider.dart';
+import 'package:waygo/view_models/offer_ride_view_models/offer_ride_view_model.dart';
 
 import 'package:waygo/widgets/search_text_field.dart';
 
-class CurrentLocationMap extends StatefulWidget {
+class CurrentLocationMap extends ConsumerStatefulWidget {
   @override
   _CurrentLocationMapState createState() => _CurrentLocationMapState();
 }
 
-class _CurrentLocationMapState extends State<CurrentLocationMap> {
-  LatLng? _currentLocation;
-  String? _currentAddress = 'Loading...';
-  LatLng? _destinationLocation;
-  LatLng? _origin;
-  int selectedSeats = 3;
-  double totalDistance = 0.0;
-  String totalDuration = '0 mins.';
-
-  List<LatLng> _polylinePoints = [];
-
-  final bool _isSearching = false;
+class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
   final MapController _mapController = MapController();
+  bool _mounted = true;
+
+  bool _showInfoCard = false;
+  DateTime? _selectedDate;
+  TimeOfDay? _selectedTime;
+  final TextEditingController _fareController = TextEditingController();
+  OverlayEntry? _overlayEntry;
+
+  final GlobalKey _infoCardKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation();
-  }
-
-  Future<void> _getCurrentLocation() async {
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        // Set a default location if permission is denied
-        setState(() {
-          _currentLocation =
-              const LatLng(28.6139, 77.2090); // New Delhi coordinates
-          _currentAddress = 'New Delhi, India';
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _mapController.move(_adjustMapCenter(_currentLocation!), 10);
-        });
-        return;
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      setState(() {
-        _currentLocation = _currentLocation = const LatLng(28.6139, 77.2090);
-        _currentAddress = 'New Delhi, India';
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _mapController.move(_adjustMapCenter(_currentLocation!), 10);
-      });
-      return;
-    }
-
-    // Get current position if permissions are granted
-    Position position = await Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    );
-
-    setState(() {
-      _currentLocation = LatLng(position.latitude, position.longitude);
-    });
+    _fareController.text = "120";
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _mapController.move(_adjustMapCenter(_currentLocation!), 16);
+      if (_mounted) {
+        final viewModel = ref.read(offerRideViewModelProvider);
+        viewModel.initialize();
+        viewModel.checkPermissions();
+        viewModel.getCurrentLocation(_mapController, context);
+        final customUser = ref.read(userProvider);
+        if (customUser != null) {
+          viewModel.initializeVehicleSettings(customUser.vehicleType);
+        }
+      }
     });
   }
 
-  Future<Map<String, dynamic>> getDirections(
-      String origin, String destination) async {
-    const apiUrl = 'https://api.olamaps.io/routing/v1/directions';
-    final response = await http.post(
-      Uri.parse(
-          '$apiUrl?origin=$origin&destination=$destination&mode=driving&alternatives=false&steps=true&overview=full&language=en&traffic_metadata=false&api_key=W4ZIxk4chk1Y0C7tcHLcrzORBRrGS0WR6izkx25d'),
-      headers: {'accept': 'application/json'},
+  @override
+  void dispose() {
+    _mounted = false;
+    _fareController.dispose();
+    _removeOverlay();
+    super.dispose();
+  }
+
+  void _showInfoOverlay(BuildContext context) {
+    _removeOverlay();
+
+    // Get the position of the info card block
+    RenderBox renderBox =
+        _infoCardKey.currentContext!.findRenderObject() as RenderBox;
+    Offset position = renderBox.localToGlobal(Offset.zero);
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: position.dy - 130,
+        left: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            height: 130,
+            width: 300,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color.fromRGBO(10, 34, 41, 1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color:
+                    Color.fromRGBO(215, 223, 127, 1), // Dark gray border color
+                width: 3,
+              ),
+            ),
+            child: const Text(
+              textAlign: TextAlign.center,
+              'Fare is generated dynamically. However,\nyou can adjust fare up to +/- ₹100.',
+              style: TextStyle(
+                color: Color.fromRGBO(215, 223, 127, 1), // Yellow-green color
+                fontSize: 18,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
 
-    if (response.statusCode == 200) {
-      return json.decode(response.body);
-    } else {
-      throw Exception('Failed to fetch directions');
-    }
+    Overlay.of(context).insert(_overlayEntry!);
+    Future.delayed(const Duration(seconds: 5), _removeOverlay);
   }
 
-  List<LatLng> decodePolyline(String polyline) {
-    List<LatLng> coordinates = [];
-    int index = 0, len = polyline.length;
-    int lat = 0, lng = 0;
-
-    while (index < len) {
-      int b, shift = 0, result = 0;
-      do {
-        b = polyline.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lat += dlat;
-
-      shift = 0;
-      result = 0;
-      do {
-        b = polyline.codeUnitAt(index++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20);
-      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
-      lng += dlng;
-
-      LatLng point = LatLng(lat / 1E5, lng / 1E5);
-      coordinates.add(point);
-    }
-
-    return coordinates;
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
   }
 
-  void _selectOrigin(LatLng origin) async {
-    setState(() {
-      _origin = origin;
-    });
-  }
+  Future<void> _selectDateTime(BuildContext context) async {
+    final DateTime? date = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 30)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color.fromRGBO(215, 223, 127, 1),
+              surface: Color.fromRGBO(13, 47, 58, 1),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
 
-  void _selectDestination(LatLng destination) async {
-    setState(() {
-      _destinationLocation = destination;
-    });
-    if (_currentLocation != null && _destinationLocation != null) {
-      String origin =
-          '${_currentLocation!.latitude},${_currentLocation!.longitude}';
-      String destination =
-          '${_destinationLocation!.latitude},${_destinationLocation!.longitude}';
-      var directions = await getDirections(origin, destination);
-      if (directions['routes'] != null && directions['routes'].isNotEmpty) {
-        String polyline = directions['routes'][0]['overview_polyline'];
-        List<LatLng> decodedPoints = decodePolyline(polyline);
-        List<dynamic> steps = directions['routes'][0]['legs'][0]['steps'];
+    if (date != null) {
+      final TimeOfDay? time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: Color.fromRGBO(215, 223, 127, 1),
+                surface: Color.fromRGBO(13, 47, 58, 1),
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
 
+      if (time != null) {
         setState(() {
-          _polylinePoints = decodedPoints;
-          totalDistance = calculateTotalDistance(steps);
-          totalDuration = calculateTotalDuration(steps);
+          _selectedDate = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            time.hour,
+            time.minute,
+          );
+          _selectedTime = time;
         });
-        _fitMapToPolyline();
       }
     }
   }
 
-  String calculateTotalDuration(List<dynamic> steps) {
-    int totalSeconds = 0;
+  void _fitMapToPolyline(List<LatLng> polylinePoints) {
+    if (polylinePoints.isEmpty) return;
+    double minLat = polylinePoints.first.latitude;
+    double maxLat = polylinePoints.first.latitude;
+    double minLng = polylinePoints.first.longitude;
+    double maxLng = polylinePoints.first.longitude;
 
-    // Accumulate the duration for each step in seconds
-    for (var step in steps) {
-      totalSeconds += step['duration'] as int; // duration is in seconds
-    }
-
-    // Convert total seconds to hours and minutes
-    int hours = totalSeconds ~/ 3600;
-    int minutes = (totalSeconds % 3600) ~/ 60;
-
-    // Format output based on whether hours are greater than 0 or not
-    if (hours > 0) {
-      return '$hours hr ${minutes}m';
-    } else {
-      return '$minutes mins';
-    }
-  }
-
-  double calculateTotalDistance(List<dynamic> steps) {
-    double totalDistance = 0.0;
-
-    for (var step in steps) {
-      // Accumulate the distance for each step in meters
-      totalDistance += step['distance'];
-    }
-
-    return totalDistance / 1000; // Convert meters to kilometers
-  }
-
-  void _fitMapToPolyline() {
-    if (_polylinePoints.isEmpty) return;
-
-    // Find the bounds for the polyline
-    double minLat = _polylinePoints.first.latitude;
-    double maxLat = _polylinePoints.first.latitude;
-    double minLng = _polylinePoints.first.longitude;
-    double maxLng = _polylinePoints.first.longitude;
-
-    for (LatLng point in _polylinePoints) {
+    for (LatLng point in polylinePoints) {
       minLat = point.latitude < minLat ? point.latitude : minLat;
       maxLat = point.latitude > maxLat ? point.latitude : maxLat;
       minLng = point.longitude < minLng ? point.longitude : minLng;
@@ -207,98 +172,93 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
           LatLng(maxLat, maxLng),
         ),
         padding: EdgeInsets.only(
-            top: 70, bottom: MediaQuery.of(context).size.height * 0.5 + 50),
+          top: 70,
+          bottom: MediaQuery.of(context).size.height * 0.5 + 50,
+        ),
       ),
     );
   }
 
-  LatLng _adjustMapCenter(LatLng currentCenter) {
-    double bottomSheetHeight = MediaQuery.of(context).size.height * 0.5;
-    double totalHeight = MediaQuery.of(context).size.height;
-    double visibleMapHeight = totalHeight - bottomSheetHeight;
-    double offsetInPixels = visibleMapHeight;
-    const double latDegreePerMeter = 0.0000089;
-    double offsetInDegrees = offsetInPixels * latDegreePerMeter;
-    return LatLng(
-        currentCenter.latitude - offsetInDegrees, currentCenter.longitude);
-  }
-
   @override
   Widget build(BuildContext context) {
+    final viewModel = ref.watch(offerRideViewModelProvider);
+    final customUser = ref.watch(userProvider);
     return Scaffold(
       resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          _currentLocation == null
+          viewModel.currentLocation == null
               ? const Center(child: CircularProgressIndicator())
-              : FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _currentLocation!,
-                    initialZoom: 16,
-                  ),
-                  children: [
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.waygo',
-                    ),
-                    MarkerLayer(
-                      markers: [
-                        Marker(
-                          width: 80.0,
-                          height: 80.0,
-                          point: _currentLocation!,
-                          child: const Icon(
-                            Icons.location_pin,
-                            color: Colors.red,
-                            size: 40.0,
-                          ),
+              : viewModel.isMapLoading == true
+                  ? const Align(
+                      alignment: Alignment(0.0, -0.5),
+                      child: CircularProgressIndicator(),
+                    )
+                  : FlutterMap(
+                      mapController: _mapController,
+                      options: MapOptions(
+                        initialCenter: viewModel.currentLocation!,
+                        initialZoom: 16,
+                      ),
+                      children: [
+                        TileLayer(
+                          urlTemplate:
+                              'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          userAgentPackageName: 'com.example.waygo',
                         ),
-                        if (_destinationLocation != null)
-                          Marker(
-                            width: 80.0,
-                            height: 80.0,
-                            point: _destinationLocation!,
-                            child: const Icon(
-                              Icons.location_pin,
-                              color: Colors.blue,
-                              size: 40.0,
+                        MarkerLayer(
+                          markers: [
+                            Marker(
+                              width: 80.0,
+                              height: 80.0,
+                              point: viewModel.currentLocation!,
+                              child: const Icon(
+                                Icons.location_pin,
+                                color: Colors.red,
+                                size: 40.0,
+                              ),
                             ),
+                            if (viewModel.destinationLocation != null)
+                              Marker(
+                                width: 80.0,
+                                height: 80.0,
+                                point: viewModel.destinationLocation!,
+                                child: const Icon(
+                                  Icons.location_pin,
+                                  color: Colors.blue,
+                                  size: 40.0,
+                                ),
+                              ),
+                          ],
+                        ),
+                        if (viewModel.polylinePoints.isNotEmpty)
+                          PolylineLayer(
+                            polylines: [
+                              Polyline(
+                                points: viewModel.polylinePoints,
+                                strokeWidth: 6.0,
+                                color: Colors.blue,
+                              ),
+                            ],
                           ),
                       ],
                     ),
-                    if (_polylinePoints.isNotEmpty)
-                      PolylineLayer(
-                        polylines: [
-                          Polyline(
-                            points: _polylinePoints,
-                            strokeWidth: 6.0,
-                            color: Colors.blue,
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-          if (_isSearching)
-            const Center(
-              child: CircularProgressIndicator(),
-            ),
           Positioned(
-            bottom: 0,
+            bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 60 : 0,
             left: 0,
             right: 0,
             child: SingleChildScrollView(
               child: SizedBox(
                   height: MediaQuery.of(context).size.height,
                   child: DraggableScrollableSheet(
-                    initialChildSize: 0.5,
-                    minChildSize: 0.5,
-                    maxChildSize: 0.5,
+                    initialChildSize: 0.515,
+                    minChildSize: 0.515,
+                    maxChildSize: 0.515,
                     builder: (BuildContext context,
                         ScrollController scrollController) {
                       return Container(
-                        padding: const EdgeInsets.all(16.0),
+                        padding:
+                            const EdgeInsets.only(left: 16, right: 16, top: 16),
                         decoration: const BoxDecoration(
                           color: Color.fromRGBO(13, 47, 58, 1),
                           borderRadius: BorderRadius.only(
@@ -325,9 +285,7 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
                               padding: const EdgeInsets.only(left: 8),
                               child: Row(
                                 children: [
-                                  Image.asset(
-                                    'assets/images/pin-location.png',
-                                  ),
+                                  Image.asset('assets/images/pin-location.png'),
                                   const Text(
                                     'Start from',
                                     style: TextStyle(
@@ -340,16 +298,16 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
                             ),
                             AutocompleteSearchField(
                               showIconButton: true,
-                              onDestinationSelected: (LatLng destination) {},
+                              onDestinationSelected: (LatLng origin) {
+                                viewModel.setOrigin(origin);
+                              },
                             ),
                             const SizedBox(height: 10),
                             Padding(
                               padding: const EdgeInsets.only(left: 8),
                               child: Row(
                                 children: [
-                                  Image.asset(
-                                    'assets/images/origin-icon.png',
-                                  ),
+                                  Image.asset('assets/images/origin-icon.png'),
                                   const Text(
                                     'Destination',
                                     style: TextStyle(
@@ -361,84 +319,245 @@ class _CurrentLocationMapState extends State<CurrentLocationMap> {
                               ),
                             ),
                             AutocompleteSearchField(
-                              onDestinationSelected: (LatLng destination) {
-                                _selectDestination(destination);
+                              onDestinationSelected:
+                                  (LatLng destination) async {
+                                await viewModel.selectDestination(destination);
+                                _fitMapToPolyline(viewModel.polylinePoints);
                               },
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 5),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        const TextSpan(
+                                          text: 'Distance: ',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text:
+                                              '${viewModel.totalDistance.toStringAsFixed(1)} Kms',
+                                          style: const TextStyle(
+                                            color: Color.fromRGBO(
+                                                215, 223, 127, 1),
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  RichText(
+                                    text: TextSpan(
+                                      children: [
+                                        const TextSpan(
+                                          text: 'Time Estimated: ',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        TextSpan(
+                                          text: viewModel.totalDuration,
+                                          style: const TextStyle(
+                                            color: Color.fromRGBO(
+                                                215, 223, 127, 1),
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             const SizedBox(height: 10),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Distance: ${totalDistance.toStringAsFixed(1)}km',
-                                  style: const TextStyle(
-                                      color: Color.fromRGBO(215, 223, 127, 1),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                                Text(
-                                  'Time Estimated: $totalDuration',
-                                  style: const TextStyle(
-                                      color: Color.fromRGBO(215, 223, 127, 1),
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                const Text(
-                                  'Select No. Vacant Seats',
-                                  style: TextStyle(
-                                    color: Color.fromRGBO(215, 223, 127, 1),
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: List.generate(4, (index) {
-                                    return Container(
-                                      width: 30,
-                                      height: 30,
-                                      margin: const EdgeInsets.symmetric(
-                                          horizontal: 4),
-                                      child: ElevatedButton(
-                                        style: ElevatedButton.styleFrom(
-                                          padding: EdgeInsets.zero,
-                                          backgroundColor:
-                                              index == selectedSeats - 1
-                                                  ? const Color.fromRGBO(
-                                                      215, 223, 127, 1)
-                                                  : Colors.transparent,
-                                          side: const BorderSide(
-                                              color: Color.fromRGBO(
-                                                  215, 223, 127, 1)),
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10)),
+                                // Left side: Fare label with info icon
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 16),
+                                  child: Row(
+                                    children: [
+                                      const Text(
+                                        'Fare',
+                                        style: TextStyle(
+                                          color:
+                                              Color.fromRGBO(215, 223, 127, 1),
+                                          fontSize: 17,
                                         ),
-                                        onPressed: () {},
-                                        child: Text(
-                                          (index + 1).toString(),
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: index == selectedSeats - 1
-                                                ? Colors.black
-                                                : const Color.fromRGBO(
-                                                    215, 223, 127, 1),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      GestureDetector(
+                                        onTap: () => _showInfoOverlay(context),
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: const Color.fromRGBO(
+                                                10, 34, 41, 1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Row(
+                                            key: _infoCardKey,
+                                            children: [
+                                              Image.asset(
+                                                  'assets/images/info.png'),
+                                              const SizedBox(width: 6),
+                                              const Text(
+                                                'Click for\n more info',
+                                                textAlign: TextAlign.center,
+                                                style: TextStyle(
+                                                  color: Color.fromRGBO(
+                                                      215, 223, 127, 1),
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
-                                    );
-                                  }),
+                                    ],
+                                  ),
+                                ),
+
+                                // Right side: Decrement, Fare value, Increment
+                                Row(
+                                  children: [
+                                    GestureDetector(
+                                      child: Image.asset(
+                                          'assets/images/minus.png'),
+                                      onTap: () {
+                                        int currentFare =
+                                            int.parse(_fareController.text);
+                                        if (currentFare > 0) {
+                                          _fareController.text =
+                                              (currentFare - 10).toString();
+                                        }
+                                      },
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8.0),
+                                      child: Container(
+                                        width: 80,
+                                        height: 40,
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                          color: const Color.fromRGBO(
+                                              10, 34, 41, 1),
+                                        ),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: TextField(
+                                            controller: _fareController,
+                                            keyboardType: TextInputType.number,
+                                            style: const TextStyle(
+                                              color: Color.fromRGBO(
+                                                  215, 223, 127, 1),
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                            decoration: const InputDecoration(
+                                              border: InputBorder.none,
+                                              prefixText: '₹ ',
+                                              prefixStyle: TextStyle(
+                                                color: Color.fromRGBO(
+                                                    215, 223, 127, 1),
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      child:
+                                          Image.asset('assets/images/plus.png'),
+                                      onTap: () {
+                                        int currentFare =
+                                            int.parse(_fareController.text);
+                                        _fareController.text =
+                                            (currentFare + 10).toString();
+                                      },
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 10),
+                            if (customUser!.vehicleType == 'Car' ||
+                                customUser.vehicleType == 'Auto')
+                              Row(
+                                children: [
+                                  const Padding(
+                                    padding: EdgeInsets.all(8.0),
+                                    child: Text(
+                                      'Vacant Seats Available',
+                                      style: TextStyle(
+                                        color: Color.fromRGBO(215, 223, 127, 1),
+                                        fontSize: 17,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceEvenly,
+                                    children: List.generate(viewModel.maxSeats,
+                                        (index) {
+                                      return Container(
+                                        width: 30,
+                                        height: 30,
+                                        margin: const EdgeInsets.symmetric(
+                                            horizontal: 4),
+                                        child: ElevatedButton(
+                                          style: ElevatedButton.styleFrom(
+                                            padding: EdgeInsets.zero,
+                                            backgroundColor: index ==
+                                                    viewModel.selectedSeats - 1
+                                                ? const Color.fromRGBO(
+                                                    215, 223, 127, 1)
+                                                : Colors.white,
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10)),
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              viewModel
+                                                  .setSelectedSeats(index + 1);
+                                            });
+                                          },
+                                          child: Text(
+                                            (index + 1).toString(),
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
+                                                color: Color.fromRGBO(
+                                                    10, 34, 41, 1)),
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            const SizedBox(height: 10),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
