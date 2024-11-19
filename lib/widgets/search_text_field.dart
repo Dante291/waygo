@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart'; // Use the correct import
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:latlong2/latlong.dart';
+import 'package:waygo/view_models/offer_ride_view_models/offer_ride_view_model.dart';
 
-class AutocompleteSearchField extends StatefulWidget {
+class AutocompleteSearchField extends ConsumerStatefulWidget {
   final bool showIconButton;
   final void Function(LatLng destination) onDestinationSelected;
+  final bool Function()? validateStart;
 
   AutocompleteSearchField({
     super.key,
     this.showIconButton = false,
     required this.onDestinationSelected,
+    this.validateStart,
   });
 
   @override
@@ -20,14 +24,32 @@ class AutocompleteSearchField extends StatefulWidget {
       _AutocompleteSearchFieldState();
 }
 
-class _AutocompleteSearchFieldState extends State<AutocompleteSearchField> {
+class _AutocompleteSearchFieldState
+    extends ConsumerState<AutocompleteSearchField> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
+  bool _showError = false;
   LatLng? _currentLocation;
   String? _currentAddress;
 
   @override
   void initState() {
     super.initState();
+    _focusNode.addListener(() {
+      if (_focusNode.hasFocus && widget.validateStart != null) {
+        // Validate "Start From" before letting the user type
+        if (!(widget.validateStart!())) {
+          setState(() {
+            _showError = true; // Show the error
+          });
+          _focusNode.unfocus(); // Remove focus
+        } else {
+          setState(() {
+            _showError = false; // Clear the error
+          });
+        }
+      }
+    });
     _getCurrentLocation();
   }
 
@@ -51,6 +73,8 @@ class _AutocompleteSearchFieldState extends State<AutocompleteSearchField> {
   Future<void> _getCurrentAddress() async {
     final latlng =
         '${_currentLocation!.latitude},${_currentLocation!.longitude}';
+    final viewModel = ref.watch(offerRideViewModelProvider);
+    viewModel.setOrigin(_currentLocation!);
     final url = Uri.parse('https://api.olamaps.io/places/v1/reverse-geocode')
         .replace(queryParameters: {
       'latlng': latlng,
@@ -96,66 +120,81 @@ class _AutocompleteSearchFieldState extends State<AutocompleteSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          border: Border.all(
-              color: const Color.fromRGBO(215, 223, 127, 1), width: 2),
-          borderRadius: BorderRadius.circular(8.0),
-        ),
-        child: TypeAheadField<Map<String, dynamic>>(
-          builder: (context, controller, focusNode) {
-            return TextField(
-              controller: controller,
-              focusNode: focusNode,
-              decoration: InputDecoration(
-                hintStyle:
-                    const TextStyle(color: Color.fromRGBO(215, 223, 127, 1)),
-                border: InputBorder.none,
-                contentPadding: const EdgeInsets.all(10.0),
-                suffixIcon: widget.showIconButton
-                    ? IconButton(
-                        icon: const Icon(
-                          Icons.location_pin,
-                          color: Colors.red,
-                        ),
-                        onPressed: () async {
-                          await _getCurrentAddress();
-                          setState(() {
-                            _searchController.clear();
-                            _searchController.text = _currentAddress!;
-                          });
-                        },
-                      )
-                    : null,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: const Color.fromRGBO(215, 223, 127, 1),
+                width: 2,
               ),
-              style: const TextStyle(color: Colors.white),
-            );
-          },
-          hideOnEmpty: true,
-          direction: VerticalDirection.up,
-          suggestionsCallback: (pattern) async {
-            final results = await _getAutocompleteResults(pattern);
-            return results.take(4).toList();
-          },
-          itemBuilder: (context, suggestion) {
-            return ListTile(
-              title: Text(suggestion['description']),
-            );
-          },
-          onSelected: (suggestion) {
-            widget.onDestinationSelected(LatLng(
-              suggestion['lat'],
-              suggestion['lng'],
-            ));
-            _searchController.text = suggestion['description'];
-          },
-          hideOnSelect: true,
-          controller: _searchController,
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+            child: TypeAheadField<Map<String, dynamic>>(
+              builder: (context, controller, focusNode) {
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  decoration: InputDecoration(
+                    hintStyle: const TextStyle(
+                        color: Color.fromRGBO(215, 223, 127, 1)),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.all(10.0),
+                    suffixIcon: widget.showIconButton
+                        ? IconButton(
+                            icon: const Icon(
+                              Icons.location_pin,
+                              color: Colors.red,
+                            ),
+                            onPressed: () async {
+                              await _getCurrentAddress();
+                              setState(() {
+                                _searchController.clear();
+                                _searchController.text = _currentAddress!;
+                              });
+                            },
+                          )
+                        : null,
+                  ),
+                  style: const TextStyle(color: Colors.white),
+                );
+              },
+              controller: _searchController,
+              focusNode: _focusNode,
+              hideOnEmpty: true,
+              direction: VerticalDirection.up,
+              suggestionsCallback: (pattern) async {
+                return await _getAutocompleteResults(pattern);
+              },
+              itemBuilder: (context, suggestion) {
+                return ListTile(
+                  title: Text(suggestion['description']),
+                );
+              },
+              onSelected: (suggestion) {
+                widget.onDestinationSelected(LatLng(
+                  suggestion['lat'],
+                  suggestion['lng'],
+                ));
+                _searchController.text = suggestion['description'];
+              },
+            ),
+          ),
         ),
-      ),
+        if (_showError)
+          const Padding(
+            padding: EdgeInsets.only(left: 10, top: 2),
+            child: Text(
+              "Please fill 'Start From' first.",
+              style: TextStyle(
+                  color: Colors.red, fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ),
+      ],
     );
   }
 }

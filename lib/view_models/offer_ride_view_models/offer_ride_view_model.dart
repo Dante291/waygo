@@ -14,6 +14,7 @@ class OfferRideViewModel extends ChangeNotifier {
   List<LatLng> _polylinePoints = [];
 
   double totalDistance = 0.0;
+  double fare = 0.0;
   String totalDuration = '0 mins.';
   bool isMapLoading = true;
   String vehicleType = '';
@@ -24,6 +25,14 @@ class OfferRideViewModel extends ChangeNotifier {
   LatLng? get destinationLocation => _destinationLocation;
   LatLng? get origin => _origin;
   List<LatLng> get polylinePoints => _polylinePoints;
+
+  void initialize() {
+    _polylinePoints = [];
+    totalDistance = 0.0;
+    totalDuration = '0 mins.';
+    fare = 0.0;
+    _origin = null;
+  }
 
   Future<void> checkPermissions() async {
     LocationPermission permission = await Geolocator.checkPermission();
@@ -43,12 +52,6 @@ class OfferRideViewModel extends ChangeNotifier {
     double offsetInDegrees = offsetInPixels * latDegreePerMeter;
     return LatLng(
         currentCenter.latitude - offsetInDegrees, currentCenter.longitude);
-  }
-
-  void initialize() {
-    _polylinePoints = [];
-    totalDistance = 0.0;
-    totalDuration = '0 mins.';
   }
 
   Future<void> getCurrentLocation(
@@ -116,11 +119,10 @@ class OfferRideViewModel extends ChangeNotifier {
         String polyline = directions['routes'][0]['overview_polyline'];
         List<LatLng> decodedPoints = decodePolyline(polyline);
         List<dynamic> steps = directions['routes'][0]['legs'][0]['steps'];
-        print(11);
-
         _polylinePoints = decodedPoints;
         totalDistance = calculateTotalDistance(steps);
         totalDuration = calculateTotalDuration(steps);
+        fare = calculateFare();
         notifyListeners();
       }
     }
@@ -198,7 +200,13 @@ class OfferRideViewModel extends ChangeNotifier {
       totalDistance += step['distance'];
     }
 
-    return totalDistance / 1000; // Convert meters to kilometers
+    return totalDistance / 1000;
+  }
+
+  double calculateFare() {
+    const double farePerKm = 15.0; // INR per kilometer
+    double fare1 = totalDistance * farePerKm;
+    return fare1;
   }
 
   void setSelectedSeats(int seats) {

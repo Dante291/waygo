@@ -19,7 +19,6 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
   bool _showInfoCard = false;
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
-  final TextEditingController _fareController = TextEditingController();
   OverlayEntry? _overlayEntry;
 
   final GlobalKey _infoCardKey = GlobalKey();
@@ -27,7 +26,6 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
   @override
   void initState() {
     super.initState();
-    _fareController.text = "120";
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_mounted) {
         final viewModel = ref.read(offerRideViewModelProvider);
@@ -45,7 +43,6 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
   @override
   void dispose() {
     _mounted = false;
-    _fareController.dispose();
     _removeOverlay();
     super.dispose();
   }
@@ -79,9 +76,9 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
             ),
             child: const Text(
               textAlign: TextAlign.center,
-              'Fare is generated dynamically. However,\nyou can adjust fare up to +/- ₹100.',
+              'Fare is generated dynamically. However,\nyou can adjust fare up to\n +/- ₹100.',
               style: TextStyle(
-                color: Color.fromRGBO(215, 223, 127, 1), // Yellow-green color
+                color: Color.fromRGBO(215, 223, 127, 1),
                 fontSize: 18,
                 height: 1.3,
               ),
@@ -244,16 +241,18 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
                       ],
                     ),
           Positioned(
-            bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 60 : 0,
+            bottom: MediaQuery.of(context).viewInsets.bottom > 0 ? 35 : 0,
             left: 0,
             right: 0,
             child: SingleChildScrollView(
               child: SizedBox(
-                  height: MediaQuery.of(context).size.height,
+                  height: MediaQuery.of(context).size.height * 0.535,
                   child: DraggableScrollableSheet(
-                    initialChildSize: 0.515,
-                    minChildSize: 0.515,
-                    maxChildSize: 0.515,
+                    initialChildSize: 0.99,
+                    minChildSize: 0.52,
+                    maxChildSize: 1,
+                    snap: true,
+                    snapSizes: const [0.52, 0.99],
                     builder: (BuildContext context,
                         ScrollController scrollController) {
                       return Container(
@@ -266,8 +265,10 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
                             topRight: Radius.circular(30),
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: ListView(
+                          controller: scrollController,
+                          shrinkWrap: true,
+                          physics: const AlwaysScrollableScrollPhysics(),
                           children: [
                             Center(
                               child: Container(
@@ -324,6 +325,7 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
                                 await viewModel.selectDestination(destination);
                                 _fitMapToPolyline(viewModel.polylinePoints);
                               },
+                              validateStart: () => viewModel.origin != null,
                             ),
                             Padding(
                               padding: const EdgeInsets.symmetric(
@@ -439,11 +441,11 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
                                       child: Image.asset(
                                           'assets/images/minus.png'),
                                       onTap: () {
-                                        int currentFare =
-                                            int.parse(_fareController.text);
+                                        double currentFare = viewModel.fare;
                                         if (currentFare > 0) {
-                                          _fareController.text =
-                                              (currentFare - 10).toString();
+                                          setState(() {
+                                            viewModel.fare = (currentFare - 10);
+                                          });
                                         }
                                       },
                                     ),
@@ -459,28 +461,29 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
                                           color: const Color.fromRGBO(
                                               10, 34, 41, 1),
                                         ),
-                                        child: Padding(
-                                          padding: const EdgeInsets.all(12.0),
-                                          child: TextField(
-                                            controller: _fareController,
-                                            keyboardType: TextInputType.number,
-                                            style: const TextStyle(
-                                              color: Color.fromRGBO(
-                                                  215, 223, 127, 1),
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                            textAlign: TextAlign.center,
-                                            decoration: const InputDecoration(
-                                              border: InputBorder.none,
-                                              prefixText: '₹ ',
-                                              prefixStyle: TextStyle(
-                                                color: Color.fromRGBO(
-                                                    215, 223, 127, 1),
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
+                                        child: RichText(
+                                          text: TextSpan(
+                                            children: [
+                                              const TextSpan(
+                                                text: '₹ ',
+                                                style: TextStyle(
+                                                  color: Color.fromRGBO(
+                                                      215, 223, 127, 1),
+                                                  fontSize: 14,
+                                                ),
                                               ),
-                                            ),
+                                              TextSpan(
+                                                text: viewModel.fare
+                                                    .round()
+                                                    .toStringAsFixed(1),
+                                                style: const TextStyle(
+                                                  color: Color.fromRGBO(
+                                                      215, 223, 127, 1),
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
@@ -489,10 +492,10 @@ class _CurrentLocationMapState extends ConsumerState<CurrentLocationMap> {
                                       child:
                                           Image.asset('assets/images/plus.png'),
                                       onTap: () {
-                                        int currentFare =
-                                            int.parse(_fareController.text);
-                                        _fareController.text =
-                                            (currentFare + 10).toString();
+                                        double currentFare = viewModel.fare;
+                                        setState(() {
+                                          viewModel.fare = (currentFare + 10);
+                                        });
                                       },
                                     ),
                                   ],
