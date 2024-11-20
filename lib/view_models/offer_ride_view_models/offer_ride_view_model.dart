@@ -251,7 +251,7 @@ class OfferRideViewModel extends ChangeNotifier {
       departureTime:
           DateTime.now(), // Current time, can be modified for scheduled rides
       availableSeats: selectedSeats,
-      price: fare,
+      price: double.parse(fare.toStringAsFixed(0)),
       status: 'scheduled',
       vehicleType: vehicleType,
       stops: [],

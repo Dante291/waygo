@@ -84,6 +84,7 @@ class _AutocompleteSearchFieldState
     final response = await http.get(url);
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+
       setState(() {
         _currentAddress = (data['results'] as List<dynamic>).first['name'];
       });
@@ -107,6 +108,7 @@ class _AutocompleteSearchFieldState
     final response = await http.get(url);
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
+
       return List<Map<String, dynamic>>.from(
           data['predictions'].map((result) => {
                 'description': result['description'],

@@ -18,6 +18,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    print(2);
     _navigateUser();
   }
 
@@ -28,9 +29,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   Future<void> _navigateUser() async {
     await Future.delayed(const Duration(seconds: 2));
-
     if (!mounted) return;
-
     User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       bool isFirstTime = await _isFirstTime();
@@ -43,7 +42,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         );
       } else {
         final loadedUser = ref.read(userProvider);
-
         if (loadedUser != null) {
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(builder: (context) => Home(user: loadedUser)),
@@ -55,6 +53,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           );
         }
       }
+    } else {
+      // Fallback to sign-up if user data couldn't be loaded
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const SignUpScreen()),
+      );
     }
   }
 
