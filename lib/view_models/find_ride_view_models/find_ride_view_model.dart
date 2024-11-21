@@ -8,22 +8,20 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import 'package:latlong2/latlong.dart';
-import 'package:waygo/models/rides.dart';
+import 'package:waygo/models/ride_request.dart';
 import 'package:waygo/providers/user_provider.dart';
 
-class OfferRideViewModel extends ChangeNotifier {
+class FindRideViewModel extends ChangeNotifier {
   LatLng? _currentLocation = const LatLng(28.6139, 77.2090);
   LatLng? _destinationLocation;
   LatLng? _origin;
   List<LatLng> _polylinePoints = [];
 
   double totalDistance = 0.0;
-  double fare = 0.0;
   String totalDuration = '0 mins.';
   bool isMapLoading = true;
-  String vehicleType = '';
   int selectedSeats = 1;
-  int maxSeats = 1;
+  int maxSeats = 4;
 
   LatLng? get currentLocation => _currentLocation;
   LatLng? get destinationLocation => _destinationLocation;
@@ -125,22 +123,6 @@ class OfferRideViewModel extends ChangeNotifier {
     );
   }
 
-  void initializeVehicleSettings(String newVehicleType) {
-    vehicleType = newVehicleType;
-
-    if (vehicleType == 'Car') {
-      maxSeats = 4;
-      selectedSeats = 4;
-    } else if (vehicleType == 'Scooter') {
-      maxSeats = 1;
-      selectedSeats = 1;
-    } else {
-      maxSeats = 3;
-      selectedSeats = 3;
-    }
-    notifyListeners();
-  }
-
   Future<void> selectDestination(LatLng destination) async {
     _destinationLocation = destination;
 
@@ -160,7 +142,6 @@ class OfferRideViewModel extends ChangeNotifier {
         _polylinePoints = decodedPoints;
         totalDistance = calculateTotalDistance(steps);
         totalDuration = calculateTotalDuration(steps);
-        fare = calculateFare();
         notifyListeners();
       }
     }
@@ -241,18 +222,12 @@ class OfferRideViewModel extends ChangeNotifier {
     return totalDistance / 1000;
   }
 
-  double calculateFare() {
-    const double farePerKm = 15.0; // INR per kilometer
-    double fare1 = totalDistance * farePerKm;
-    return fare1;
-  }
-
   void setSelectedSeats(int seats) {
     selectedSeats = seats;
     notifyListeners();
   }
 
-  Future<void> createAndSaveRide(WidgetRef ref) async {
+  Future<void> createAndSaveRideRequest(WidgetRef ref) async {
     // Ensure both origin and destination are not null
     if (_origin == null || _destinationLocation == null) {
       throw Exception('Origin or destination is missing');
@@ -263,62 +238,41 @@ class OfferRideViewModel extends ChangeNotifier {
       throw Exception('User information is missing');
     }
 
-    // Validate vehicle type and seats
-    if (vehicleType.isEmpty) {
-      throw Exception('Vehicle type is required');
-    }
-
     if (selectedSeats < 1 || selectedSeats > maxSeats) {
       throw Exception('Invalid number of seats selected');
     }
 
     // Create the ride object
-    final ride = Ride(
-      id: '',
-      driverId: FirebaseAuth.instance.currentUser!.uid,
-      passengerIds: [],
-      startLocation: GeoPoint(_origin!.latitude, _origin!.longitude),
-      endLocation: GeoPoint(
+    final rideRequest = RideRequest(
+      id: '', // Firestore will generate the ID
+      userId: FirebaseAuth.instance.currentUser!.uid,
+      rideId: '',
+      pickupLocation: GeoPoint(_origin!.latitude, _origin!.longitude),
+      dropoffLocation: GeoPoint(
           _destinationLocation!.latitude, _destinationLocation!.longitude),
-      startAddress: await _getAddressForLocation(_origin!),
-      endAddress: await _getAddressForLocation(_destinationLocation!),
-      departureTime:
-          DateTime.now(), // Current time, can be modified for scheduled rides
-      availableSeats: selectedSeats,
-      price: double.parse(fare.toStringAsFixed(0)),
-      status: 'scheduled',
-      vehicleType: vehicleType,
-      stops: [],
+      pickupAddress: await _getAddressForLocation(_origin!),
+      dropoffAddress: await _getAddressForLocation(_destinationLocation!),
+      requestTime: DateTime.now(),
+      status: 'pending',
     );
 
     // Save the ride to Firestore
-    await saveRideToFirestore(ride);
+    await saveRideRequestToFirestore(rideRequest);
   }
 
-  Future<void> saveRideToFirestore(Ride ride) async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) {
-      throw Exception('User not authenticated');
-    }
-
+  Future<DocumentReference> saveRideRequestToFirestore(
+      RideRequest rideRequest) async {
     try {
-      final ridesCollection = FirebaseFirestore.instance.collection('rides');
+      final rideRequestsCollection =
+          FirebaseFirestore.instance.collection('ride_requests');
+      final docRef = await rideRequestsCollection.add(rideRequest.toMap());
 
-      // Add the ride to Firestore; Firestore generates the ID
-      final docRef = await ridesCollection.add(ride.toMap());
+      // Update the ride request object with the generated ID
+      rideRequest.id = docRef.id;
 
-      // Update the ride object with the generated ID
-      ride.id = docRef.id;
-
-      // Optionally, update user's rides reference
-      final userRef =
-          FirebaseFirestore.instance.collection('users').doc(userId);
-      await userRef.update({
-        'activeRides': FieldValue.arrayUnion([ride.id])
-      });
+      return docRef;
     } catch (e) {
-      // Handle any errors during save process
-      print('Error saving ride: $e');
+      print('Error saving ride request: $e');
       rethrow;
     }
   }
@@ -341,5 +295,5 @@ class OfferRideViewModel extends ChangeNotifier {
 }
 
 // Provider for the ViewModel
-final offerRideViewModelProvider =
-    ChangeNotifierProvider((ref) => OfferRideViewModel());
+final findRideViewModelProvider =
+    ChangeNotifierProvider((ref) => FindRideViewModel());

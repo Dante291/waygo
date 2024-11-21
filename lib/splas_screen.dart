@@ -18,7 +18,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    print(2);
     _navigateUser();
   }
 

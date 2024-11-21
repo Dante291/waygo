@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart'; // Use the correct import
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:latlong2/latlong.dart';
+import 'package:waygo/view_models/find_ride_view_models/find_ride_view_model.dart';
 import 'package:waygo/view_models/offer_ride_view_models/offer_ride_view_model.dart';
 
 class AutocompleteSearchField extends ConsumerStatefulWidget {
   final bool showIconButton;
   final void Function(LatLng destination) onDestinationSelected;
   final bool Function()? validateStart;
+  final bool isForOfferRide;
+  final MapController mapController;
+  final bool isOriginField;
 
-  AutocompleteSearchField({
+  const AutocompleteSearchField({
     super.key,
     this.showIconButton = false,
     required this.onDestinationSelected,
+    required this.mapController,
     this.validateStart,
+    this.isForOfferRide = true,
+    this.isOriginField = false,
   });
 
   @override
@@ -73,8 +81,15 @@ class _AutocompleteSearchFieldState
   Future<void> _getCurrentAddress() async {
     final latlng =
         '${_currentLocation!.latitude},${_currentLocation!.longitude}';
-    final viewModel = ref.watch(offerRideViewModelProvider);
-    viewModel.setOrigin(_currentLocation!);
+    if (widget.isForOfferRide) {
+      final offerRideViewModel = ref.watch(offerRideViewModelProvider);
+      offerRideViewModel.setOrigin(
+          _currentLocation!, widget.mapController, context);
+    } else {
+      final findRideViewModel = ref.watch(findRideViewModelProvider);
+      await findRideViewModel.setOrigin(
+          _currentLocation!, widget.mapController, context);
+    }
     final url = Uri.parse('https://api.olamaps.io/places/v1/reverse-geocode')
         .replace(queryParameters: {
       'latlng': latlng,
@@ -153,6 +168,7 @@ class _AutocompleteSearchFieldState
                               color: Colors.red,
                             ),
                             onPressed: () async {
+                              _focusNode.unfocus();
                               await _getCurrentAddress();
                               setState(() {
                                 _searchController.clear();
@@ -177,12 +193,35 @@ class _AutocompleteSearchFieldState
                   title: Text(suggestion['description']),
                 );
               },
-              onSelected: (suggestion) {
+              onSelected: (suggestion) async {
                 widget.onDestinationSelected(LatLng(
                   suggestion['lat'],
                   suggestion['lng'],
                 ));
                 _searchController.text = suggestion['description'];
+                if (widget.isOriginField) {
+                  if (widget.isForOfferRide) {
+                    final offerRideViewModel =
+                        ref.watch(offerRideViewModelProvider);
+                    offerRideViewModel.setOrigin(
+                        LatLng(
+                          suggestion['lat'],
+                          suggestion['lng'],
+                        ),
+                        widget.mapController,
+                        context);
+                  } else {
+                    final findRideViewModel =
+                        ref.watch(findRideViewModelProvider);
+                    await findRideViewModel.setOrigin(
+                        LatLng(
+                          suggestion['lat'],
+                          suggestion['lng'],
+                        ),
+                        widget.mapController,
+                        context);
+                  }
+                }
               },
             ),
           ),

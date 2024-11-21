@@ -3,31 +3,53 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class RideRequest {
   String id;
   String userId;
-  String rideId;
+  String? rideId;
   GeoPoint pickupLocation;
+  GeoPoint dropoffLocation;
   String pickupAddress;
+  String dropoffAddress;
   DateTime requestTime;
-  String status; // e.g., "pending", "accepted", "rejected"
+  String
+      status; // e.g., "pending", "matched", "accepted", "rejected", "completed"
 
   RideRequest({
     required this.id,
     required this.userId,
-    required this.rideId,
+    this.rideId,
     required this.pickupLocation,
+    required this.dropoffLocation,
     required this.pickupAddress,
+    required this.dropoffAddress,
     required this.requestTime,
     required this.status,
   });
 
+  // Convert to Firestore-friendly map
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'userId': userId,
       'rideId': rideId,
       'pickupLocation': pickupLocation,
+      'dropoffLocation': dropoffLocation,
       'pickupAddress': pickupAddress,
+      'dropoffAddress': dropoffAddress,
       'requestTime': requestTime,
       'status': status,
     };
+  }
+
+  // Factory constructor to create from Firestore document
+  factory RideRequest.fromMap(Map<String, dynamic> map) {
+    return RideRequest(
+      id: map['id'],
+      userId: map['userId'],
+      rideId: map['rideId'],
+      pickupLocation: map['pickupLocation'],
+      dropoffLocation: map['dropoffLocation'],
+      pickupAddress: map['pickupAddress'],
+      dropoffAddress: map['dropoffAddress'],
+      requestTime: (map['requestTime'] as Timestamp).toDate(),
+      status: map['status'],
+    );
   }
 }

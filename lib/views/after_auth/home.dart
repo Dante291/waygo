@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:waygo/models/user.dart';
+import 'package:waygo/views/after_auth/find_ride_section/find_ride_section.dart';
 import 'package:waygo/views/after_auth/home_screen_view.dart';
 import 'package:waygo/views/after_auth/offer_ride_section/offer_ride_section.dart';
 import 'package:waygo/views/after_auth/user_profile/user_profile.dart';
@@ -22,9 +23,9 @@ class _HomeState extends State<Home> {
       // Home screen content
       HomeScreen(user: widget.user),
       // Offer Ride screen content
-      CurrentLocationMap(),
+      const OfferRideSection(),
       // Find Ride screen content
-      const Center(child: Text("Find Ride Screen Content")),
+      const FindRideSection(),
       // Account screen content
       UserProfile(
         user: widget.user,
