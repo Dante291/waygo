@@ -6,6 +6,7 @@ class RideRequest {
   String? rideId;
   GeoPoint pickupLocation;
   GeoPoint dropoffLocation;
+  int requestedSeats;
   String pickupAddress;
   String dropoffAddress;
   DateTime requestTime;
@@ -17,6 +18,7 @@ class RideRequest {
     required this.userId,
     this.rideId,
     required this.pickupLocation,
+    required this.requestedSeats,
     required this.dropoffLocation,
     required this.pickupAddress,
     required this.dropoffAddress,
@@ -29,6 +31,7 @@ class RideRequest {
     return {
       'userId': userId,
       'rideId': rideId,
+      'requestedSeats': requestedSeats,
       'pickupLocation': pickupLocation,
       'dropoffLocation': dropoffLocation,
       'pickupAddress': pickupAddress,
@@ -44,6 +47,7 @@ class RideRequest {
       id: map['id'],
       userId: map['userId'],
       rideId: map['rideId'],
+      requestedSeats: map['requestedSeats'],
       pickupLocation: map['pickupLocation'],
       dropoffLocation: map['dropoffLocation'],
       pickupAddress: map['pickupAddress'],

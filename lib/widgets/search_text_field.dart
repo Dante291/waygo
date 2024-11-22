@@ -194,6 +194,7 @@ class _AutocompleteSearchFieldState
                 );
               },
               onSelected: (suggestion) async {
+                _focusNode.unfocus();
                 widget.onDestinationSelected(LatLng(
                   suggestion['lat'],
                   suggestion['lng'],

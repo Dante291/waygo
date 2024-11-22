@@ -247,6 +247,7 @@ class FindRideViewModel extends ChangeNotifier {
       id: '', // Firestore will generate the ID
       userId: FirebaseAuth.instance.currentUser!.uid,
       rideId: '',
+      requestedSeats: selectedSeats,
       pickupLocation: GeoPoint(_origin!.latitude, _origin!.longitude),
       dropoffLocation: GeoPoint(
           _destinationLocation!.latitude, _destinationLocation!.longitude),
